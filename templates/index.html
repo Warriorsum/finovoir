@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mutual Fund Ranking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+    <script>
+        var allSubCategories = {{ sub_categories_dict | tojson | safe }};
+
+        function updateSubCategories() {
+            var category = document.getElementById("category").value;
+            var subCategoryDropdown = document.getElementById("sub_category");
+            subCategoryDropdown.innerHTML = '<option value="All">All</option>';
+
+            if (category !== "All" && allSubCategories.hasOwnProperty(category)) {
+                allSubCategories[category].forEach(subCategory => {
+                    var option = document.createElement("option");
+                    option.value = subCategory;
+                    option.textContent = subCategory;
+                    subCategoryDropdown.appendChild(option);
+                });
+            }
+
+            subCategoryDropdown.value = "{{ selected_sub_category }}";
+        }
+
+        function updateLongTermWeight() {
+            var shortTermWeight = document.getElementById("short_term_weight").value;
+            document.getElementById("long_term_weight").value = 100 - shortTermWeight;
+        }
+    </script>
+
+    <style>
+        /* Modern Dark Theme */
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            color: #00ccff;
+            margin-top: 20px;
+        }
+        .container {
+            max-width: 90%;
+            margin: auto;
+            padding: 20px;
+        }
+        .filter-box {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0px 0px 10px rgba(0, 204, 255, 0.3);
+        }
+        select, input, button {
+            background-color: #2c2c2c;
+            color: white;
+            border: 1px solid #00ccff;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        button {
+            background-color: #00ccff;
+            color: black;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0099cc;
+        }
+        table {
+            width: 100%;
+            margin: auto;
+            border-collapse: collapse;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0px 0px 10px rgba(0, 204, 255, 0.3);
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #333;
+            text-align: center;
+        }
+        th {
+            background-color: #00ccff;
+            color: black;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        th:hover {
+            background-color: #0099cc;
+        }
+        tr:nth-child(even) {
+            background-color: #252525;
+        }
+        tr:hover {
+            background-color: #333;
+        }
+        /* Sticky Table Header */
+        thead {
+            position: sticky;
+            top: 0;
+            background-color: #00ccff;
+            color: black;
+        }
+        /* Disclaimer */
+        .disclaimer {
+            margin: 20px auto;
+            padding: 15px;
+            background-color: #1e1e1e;
+            color: #ff6666;
+            font-size: 14px;
+            text-align: center;
+            border-radius: 8px;
+            width: 90%;
+            box-shadow: 0px 0px 10px rgba(255, 102, 102, 0.3);
+        }
+    </style>
+</head>
+<body onload="updateSubCategories(); updateLongTermWeight();">
+    <h1>Mutual Fund Ranking</h1>
+
+    <div class="container">
+        <form method="POST" class="filter-box">
+            <label for="category">Category:</label>
+            <select id="category" name="category" onchange="updateSubCategories()">
+                <option value="All" {% if selected_category == "All" %}selected{% endif %}>All</option>
+                {% for cat in categories %}
+                    <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="sub_category">Sub-Category:</label>
+            <select id="sub_category" name="sub_category">
+                <option value="All" {% if selected_sub_category == "All" %}selected{% endif %}>All</option>
+                {% if selected_category in sub_categories_dict %}
+                    {% for sub_cat in sub_categories_dict[selected_category] %}
+                        <option value="{{ sub_cat }}" {% if sub_cat == selected_sub_category %}selected{% endif %}>{{ sub_cat }}</option>
+                    {% endfor %}
+                {% endif %}
+            </select>
+
+            <label for="direct_regular">Direct / Regular:</label>
+            <select id="direct_regular" name="direct_regular">
+                {% for option in direct_regular_options %}
+                    <option value="{{ option }}" {% if option == selected_direct_regular %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="short_term_weight">Short-Term Weight (%):</label>
+            <input type="number" id="short_term_weight" name="short_term_weight" value="{{ short_term_weight }}" min="0" max="100" step="1" oninput="updateLongTermWeight()">
+            
+            <label>Long-Term Weight (%):</label>
+            <input type="text" id="long_term_weight" value="{{ long_term_weight }}" readonly>
+
+            <button type="submit">Filter</button>
+        </form>
+
+        <div class="disclaimer">
+            <strong>Disclaimer:</strong> Mutual fund investments are subject to market risks, read all scheme-related documents carefully. The NAVs of the schemes may go up or down depending upon factors affecting the securities market, including fluctuations in interest rates. The past performance of mutual funds is not necessarily indicative of future performance. The mutual fund is not guaranteeing or assuring any dividend, which is subject to availability and adequacy of distributable surplus. Investors should review the prospectus carefully and obtain expert advice regarding legal, tax, and financial implications of investing in the scheme. This information is for <strong>educational purposes only</strong> and does not constitute investment advice or a recommendation.
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    {% for col in funds.columns %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for fund in funds.itertuples() %}
+                <tr>
+                    {% for value in fund[1:] %}
+                    <td>{{ value if value is not none else '–' }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
