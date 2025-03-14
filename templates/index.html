@@ -22,7 +22,6 @@
                     subCategoryDropdown.appendChild(option);
                 });
             }
-
             subCategoryDropdown.value = "{{ selected_sub_category }}";
         }
 
@@ -30,21 +29,60 @@
             var shortTermWeight = document.getElementById("short_term_weight").value;
             document.getElementById("long_term_weight").value = 100 - shortTermWeight;
         }
+
+        function sortTable(columnIndex, isRankColumn) {
+            var table = document.getElementById("fundsTable");
+            var rows = Array.from(table.rows).slice(1);
+            var currentSort = table.getAttribute("data-sort") || "desc";
+            var ascending = currentSort === "desc";
+
+            rows.sort(function(rowA, rowB) {
+                var cellA = rowA.cells[columnIndex].innerText.trim();
+                var cellB = rowB.cells[columnIndex].innerText.trim();
+
+                if (cellA === "–" && cellB === "–") return 0;
+                if (cellA === "–") return 1;
+                if (cellB === "–") return -1;
+
+                var valA = parseFloat(cellA) || 0;
+                var valB = parseFloat(cellB) || 0;
+
+                return ascending ? valA - valB : valB - valA;
+            });
+
+            rows.forEach(row => table.appendChild(row));
+            table.setAttribute("data-sort", ascending ? "asc" : "desc");
+        }
+
+        function showDisclaimer() {
+            if (!localStorage.getItem("disclaimerAccepted")) {
+                document.getElementById("disclaimerModal").style.display = "block";
+            }
+        }
+
+        function acceptDisclaimer() {
+            localStorage.setItem("disclaimerAccepted", "true");
+            document.getElementById("disclaimerModal").style.display = "none";
+        }
     </script>
 
     <style>
-        /* Modern Dark Theme */
         body {
             background-color: #121212;
             color: #e0e0e0;
-            font-family: 'Arial', sans-serif;
+            font-family: Arial, sans-serif;
             text-align: center;
             margin: 0;
             padding: 0;
         }
         h1 {
             color: #00ccff;
-            margin-top: 20px;
+            margin-top: 10px;
+        }
+        .logo {
+            width: 300px;
+            display: block;
+            margin: 15px auto;
         }
         .container {
             max-width: 90%;
@@ -60,7 +98,6 @@
             justify-content: center;
             gap: 15px;
             margin-bottom: 20px;
-            box-shadow: 0px 0px 10px rgba(0, 204, 255, 0.3);
         }
         select, input, button {
             background-color: #2c2c2c;
@@ -69,7 +106,19 @@
             padding: 10px;
             border-radius: 5px;
             cursor: pointer;
-            transition: all 0.3s ease;
+        }
+        input[type="number"] {
+            width: 80px;
+        }
+        .readonly-box {
+            background-color: #333;
+            color: #f7f4f4;
+            border: 1px solid #555;
+            padding: 10px;
+            border-radius: 5px;
+            width: 80px;
+            display: inline-block;
+            text-align: center;
         }
         button {
             background-color: #00ccff;
@@ -86,7 +135,6 @@
             background-color: #1e1e1e;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0px 0px 10px rgba(0, 204, 255, 0.3);
         }
         th, td {
             padding: 12px;
@@ -108,49 +156,82 @@
         tr:hover {
             background-color: #333;
         }
-        /* Sticky Table Header */
         thead {
             position: sticky;
             top: 0;
             background-color: #00ccff;
             color: black;
         }
-        /* Disclaimer */
         .disclaimer {
             margin: 20px auto;
             padding: 15px;
             background-color: #1e1e1e;
-            color: #ff6666;
+            color: #888;
             font-size: 14px;
             text-align: center;
             border-radius: 8px;
             width: 90%;
-            box-shadow: 0px 0px 10px rgba(255, 102, 102, 0.3);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .modal-content {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            width: 60%;
+            margin: 15% auto;
+            text-align: center;
+        }
+        .modal button {
+            margin-top: 10px;
+            background-color: #00ccff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
         }
     </style>
 </head>
-<body onload="updateSubCategories(); updateLongTermWeight();">
+<body onload="showDisclaimer(); updateSubCategories(); updateLongTermWeight();">
+
+    <div id="disclaimerModal" class="modal">
+        <div class="modal-content">
+            <h2>Disclaimer</h2>
+            <p>
+                Mutual fund investments are subject to market risks, read all scheme-related documents carefully. The NAVs of the schemes may go up or down depending upon 
+                factors affecting the securities market, including fluctuations in interest rates. The past performance of mutual funds is not necessarily indicative of 
+                future performance. The mutual fund is not guaranteeing or assuring any dividend, which is subject to availability and adequacy of distributable surplus. 
+                Investors should review the prospectus carefully and obtain expert advice regarding legal, tax, and financial implications of investing in the scheme. 
+                
+                This information is for educational purposes only and does not constitute investment advice or a recommendation.               
+            </p>
+            <button onclick="acceptDisclaimer()">I Agree</button>
+        </div>
+    </div>
+
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo">
     <h1>Mutual Fund Ranking</h1>
 
     <div class="container">
         <form method="POST" class="filter-box">
             <label for="category">Category:</label>
             <select id="category" name="category" onchange="updateSubCategories()">
-                <option value="All" {% if selected_category == "All" %}selected{% endif %}>All</option>
+                <option value="All">All</option>
                 {% for cat in categories %}
                     <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
                 {% endfor %}
             </select>
 
             <label for="sub_category">Sub-Category:</label>
-            <select id="sub_category" name="sub_category">
-                <option value="All" {% if selected_sub_category == "All" %}selected{% endif %}>All</option>
-                {% if selected_category in sub_categories_dict %}
-                    {% for sub_cat in sub_categories_dict[selected_category] %}
-                        <option value="{{ sub_cat }}" {% if sub_cat == selected_sub_category %}selected{% endif %}>{{ sub_cat }}</option>
-                    {% endfor %}
-                {% endif %}
-            </select>
+            <select id="sub_category" name="sub_category"></select>
 
             <label for="direct_regular">Direct / Regular:</label>
             <select id="direct_regular" name="direct_regular">
@@ -160,36 +241,47 @@
             </select>
 
             <label for="short_term_weight">Short-Term Weight (%):</label>
-            <input type="number" id="short_term_weight" name="short_term_weight" value="{{ short_term_weight }}" min="0" max="100" step="1" oninput="updateLongTermWeight()">
-            
-            <label>Long-Term Weight (%):</label>
-            <input type="text" id="long_term_weight" value="{{ long_term_weight }}" readonly>
+            <input type="number" id="short_term_weight" name="short_term_weight" min="0" max="100" step="5" value="50" oninput="updateLongTermWeight()">
+
+            <label for="long_term_weight">Long-Term Weight (%):</label>
+            <div class="readonly-box" id="long_term_weight">50</div>
+            <input type="hidden" name="long_term_weight" id="long_term_weight_hidden" value="50">
 
             <button type="submit">Filter</button>
         </form>
 
-        <div class="disclaimer">
-            <strong>Disclaimer:</strong> Mutual fund investments are subject to market risks, read all scheme-related documents carefully. The NAVs of the schemes may go up or down depending upon factors affecting the securities market, including fluctuations in interest rates. The past performance of mutual funds is not necessarily indicative of future performance. The mutual fund is not guaranteeing or assuring any dividend, which is subject to availability and adequacy of distributable surplus. Investors should review the prospectus carefully and obtain expert advice regarding legal, tax, and financial implications of investing in the scheme. This information is for <strong>educational purposes only</strong> and does not constitute investment advice or a recommendation.
-        </div>
-
-        <table>
+        <table id="fundsTable">
             <thead>
                 <tr>
+                    <th>Sr. No.</th>
                     {% for col in funds.columns %}
-                    <th>{{ col }}</th>
+                    <th onclick="sortTable({{ loop.index }}, {{ 'true' if 'Rank' in col else 'false' }})">{{ col }}</th>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody>
-                {% for fund in funds.itertuples() %}
+                {% for idx, fund in funds.iterrows() %}
                 <tr>
-                    {% for value in fund[1:] %}
+                    <td>{{ idx + 1 }}</td>
+                    {% for value in fund %}
                     <td>{{ value if value is not none else '–' }}</td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="disclaimer">
+            <p>Mutual fund investments are subject to market risks, read all scheme-related documents carefully. The NAVs of the schemes may go up or down depending upon factors affecting the securities market, including fluctuations in interest rates. The past performance of mutual funds is not necessarily indicative of future performance. The mutual fund is not guaranteeing or assuring any dividend, which is subject to availability and adequacy of distributable surplus. Investors should review the prospectus carefully and obtain expert advice regarding legal, tax, and financial implications of investing in the scheme. This information is for educational purposes only and does not constitute investment advice or a recommendation. </p>
+        </div>
     </div>
+
+    <script>
+        // Update the hidden input for form submission
+        document.getElementById("short_term_weight").addEventListener("input", function() {
+            document.getElementById("long_term_weight").textContent = 100 - this.value;
+            document.getElementById("long_term_weight_hidden").value = 100 - this.value;
+        });
+    </script>
 </body>
 </html>
