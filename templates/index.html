@@ -221,12 +221,14 @@
         <table id="fundsTable">
             <thead>
                 <tr>
-                    <th onclick="sortTable(0, false)">Sr. No.</th>
-                    {% for col in funds.columns[1:] %}
-                    <th onclick="sortTable({{ loop.index + 1 }}, {{ 'true' if 'Rank' in col else 'false' }})">{{ col }}</th>
+                    <th onclick="sortTable(0, false)">Sr. No.</th> <!-- Ensure Sr. No. is the first column -->
+                    {% for col in funds.columns %}
+                    <th onclick="sortTable({{ loop.index }}, {{ 'true' if 'Rank' in col else 'false' }})">
+                        {{ col }}
+                    </th>
                     {% endfor %}
                 </tr>
-            </thead>            
+            </thead>                        
             <tbody>
                 {% for idx, fund in funds.iterrows() %}
                 <tr>
