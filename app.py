@@ -28,6 +28,13 @@ for key in sub_categories_dict:
 
 direct_regular_options = ["All", "Direct", "Regular"]
 
+# Read the most common NAV date from the file
+try:
+    with open("latest_nav_date.txt", "r") as file:
+        most_common_nav_date = file.read().strip()
+except FileNotFoundError:
+    most_common_nav_date = "Unknown"
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     filtered_funds = df.copy()
@@ -80,8 +87,7 @@ def index():
                            direct_regular_options=direct_regular_options, funds=filtered_funds,
                            short_term_weight=short_term_weight, long_term_weight=long_term_weight,
                            selected_category=category, selected_sub_category=sub_category,
-                           selected_direct_regular=direct_regular)
+                           selected_direct_regular=direct_regular, most_common_nav_date=most_common_nav_date)
 
 if __name__ == "__main__":
     app.run(debug=True)
-    

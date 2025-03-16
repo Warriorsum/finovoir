@@ -27,7 +27,19 @@
 
         function updateLongTermWeight() {
             var shortTermWeight = document.getElementById("short_term_weight").value;
-            document.getElementById("long_term_weight").value = 100 - shortTermWeight;
+            document.getElementById("long_term_weight").textContent = 100 - shortTermWeight;
+            document.getElementById("long_term_weight_hidden").value = 100 - shortTermWeight;
+        }
+
+        function showDisclaimer() {
+            if (!localStorage.getItem("disclaimerAccepted")) {
+                document.getElementById("disclaimerModal").style.display = "block";
+            }
+        }
+
+        function acceptDisclaimer() {
+            localStorage.setItem("disclaimerAccepted", "true");
+            document.getElementById("disclaimerModal").style.display = "none";
         }
 
         function sortTable(columnIndex, isRankColumn) {
@@ -52,17 +64,6 @@
 
             rows.forEach(row => table.appendChild(row));
             table.setAttribute("data-sort", ascending ? "asc" : "desc");
-        }
-
-        function showDisclaimer() {
-            if (!localStorage.getItem("disclaimerAccepted")) {
-                document.getElementById("disclaimerModal").style.display = "block";
-            }
-        }
-
-        function acceptDisclaimer() {
-            localStorage.setItem("disclaimerAccepted", "true");
-            document.getElementById("disclaimerModal").style.display = "none";
         }
     </script>
 
@@ -99,7 +100,8 @@
             gap: 15px;
             margin-bottom: 20px;
         }
-        select, input, button {
+        select, input, 
+        button {
             background-color: #2c2c2c;
             color: white;
             border: 1px solid #00ccff;
@@ -120,47 +122,12 @@
             display: inline-block;
             text-align: center;
         }
-        button {
-            background-color: #00ccff;
-            color: black;
-            font-weight: bold;
-        }
-        button:hover {
-            background-color: #0099cc;
-        }
-        table {
-            width: 100%;
-            margin: auto;
-            border-collapse: collapse;
-            background-color: #1e1e1e;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        th, td {
-            padding: 12px;
-            border: 1px solid #333;
-            text-align: center;
-        }
-        th {
-            background-color: #00ccff;
-            color: black;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        th:hover {
-            background-color: #0099cc;
-        }
-        tr:nth-child(even) {
-            background-color: #252525;
-        }
-        tr:hover {
-            background-color: #333;
-        }
-        thead {
-            position: sticky;
-            top: 0;
-            background-color: #00ccff;
-            color: black;
+        .source-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #b0b0b0;
+            margin-bottom: 10px;
         }
         .disclaimer {
             margin: 20px auto;
@@ -205,14 +172,7 @@
     <div id="disclaimerModal" class="modal">
         <div class="modal-content">
             <h2>Disclaimer</h2>
-            <p>
-                Mutual fund investments are subject to market risks, read all scheme-related documents carefully. The NAVs of the schemes may go up or down depending upon 
-                factors affecting the securities market, including fluctuations in interest rates. The past performance of mutual funds is not necessarily indicative of 
-                future performance. The mutual fund is not guaranteeing or assuring any dividend, which is subject to availability and adequacy of distributable surplus. 
-                Investors should review the prospectus carefully and obtain expert advice regarding legal, tax, and financial implications of investing in the scheme. 
-                
-                This information is for educational purposes only and does not constitute investment advice or a recommendation.               
-            </p>
+            <p>Mutual fund investments are subject to market risks...</p>
             <button onclick="acceptDisclaimer()">I Agree</button>
         </div>
     </div>
@@ -229,59 +189,64 @@
                     <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
                 {% endfor %}
             </select>
-
+        
             <label for="sub_category">Sub-Category:</label>
             <select id="sub_category" name="sub_category"></select>
-
+        
             <label for="direct_regular">Direct / Regular:</label>
             <select id="direct_regular" name="direct_regular">
                 {% for option in direct_regular_options %}
                     <option value="{{ option }}" {% if option == selected_direct_regular %}selected{% endif %}>{{ option }}</option>
                 {% endfor %}
             </select>
-
+        
+            <!-- Adding Short-Term and Long-Term Weight Filters -->
             <label for="short_term_weight">Short-Term Weight (%):</label>
-            <input type="number" id="short_term_weight" name="short_term_weight" min="0" max="100" step="5" value="50" oninput="updateLongTermWeight()">
-
+            <input type="number" id="short_term_weight" name="short_term_weight" min="0" max="100" step="5" 
+                   value="{{ short_term_weight }}" oninput="updateLongTermWeight()">
+        
             <label for="long_term_weight">Long-Term Weight (%):</label>
-            <div class="readonly-box" id="long_term_weight">50</div>
-            <input type="hidden" name="long_term_weight" id="long_term_weight_hidden" value="50">
-
-            <button type="submit">Filter</button>
+            <div class="readonly-box" id="long_term_weight">{{ long_term_weight }}</div>
+            <input type="hidden" name="long_term_weight" id="long_term_weight_hidden" value="{{ long_term_weight }}">
+        
+            <button type="submit" class="filter-btn">Filter</button>
         </form>
+        
+
+        <div class="source-info">
+            <span><em>Source: AMFI, Free India Mutual Fund API (www.mfapi.in)</em></span>
+            <span><em>As of {{ most_common_nav_date }}</em></span>
+        </div>
 
         <table id="fundsTable">
             <thead>
                 <tr>
-                    <th>Sr. No.</th>
-                    {% for col in funds.columns %}
-                    <th onclick="sortTable({{ loop.index }}, {{ 'true' if 'Rank' in col else 'false' }})">{{ col }}</th>
+                    <th onclick="sortTable(0, false)">Sr. No.</th>
+                    {% for col in funds.columns[1:] %}
+                    <th onclick="sortTable({{ loop.index + 1 }}, {{ 'true' if 'Rank' in col else 'false' }})">{{ col }}</th>
                     {% endfor %}
                 </tr>
-            </thead>
+            </thead>            
             <tbody>
                 {% for idx, fund in funds.iterrows() %}
                 <tr>
-                    <td>{{ idx + 1 }}</td>
+                    <td>{{ loop.index }}</td> <!-- Dynamically recalculates Sr. No. -->
                     {% for value in fund %}
                     <td>{{ value if value is not none else '–' }}</td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
-            </tbody>
+            </tbody>            
         </table>
 
         <div class="disclaimer">
-            <p>Mutual fund investments are subject to market risks, read all scheme-related documents carefully. The NAVs of the schemes may go up or down depending upon factors affecting the securities market, including fluctuations in interest rates. The past performance of mutual funds is not necessarily indicative of future performance. The mutual fund is not guaranteeing or assuring any dividend, which is subject to availability and adequacy of distributable surplus. Investors should review the prospectus carefully and obtain expert advice regarding legal, tax, and financial implications of investing in the scheme. This information is for educational purposes only and does not constitute investment advice or a recommendation. </p>
+            <p>Mutual fund investments are subject to market risks...</p>
         </div>
     </div>
 
-    <script>
-        // Update the hidden input for form submission
-        document.getElementById("short_term_weight").addEventListener("input", function() {
-            document.getElementById("long_term_weight").textContent = 100 - this.value;
-            document.getElementById("long_term_weight_hidden").value = 100 - this.value;
-        });
-    </script>
+    <footer class="footer">
+        <p>&copy; 2025 Finovoir. All rights reserved.</p>
+    </footer>
+
 </body>
 </html>

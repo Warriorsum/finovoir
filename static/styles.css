@@ -1,17 +1,86 @@
+/* General Styles */
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
+    background-color: #121212;
+    color: #e0e0e0;
+    text-align: center;
 }
+
+/* Table Styles */
 table {
     width: 100%;
     border-collapse: collapse;
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0px 0px 10px rgba(0, 204, 255, 0.3);
 }
 th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
+    border: 1px solid #333;
+    padding: 10px;
     text-align: center;
 }
 th {
-    background-color: #f4f4f4;
+    background-color: #00ccff;
+    color: black;
     cursor: pointer;
+    font-weight: bold;
+}
+th:hover {
+    background-color: #0099cc;
+}
+tr:nth-child(even) {
+    background-color: #252525;
+}
+tr:hover {
+    background-color: #333;
+}
+
+/* Disclaimer Box */
+.disclaimer {
+    margin: 20px auto;
+    padding: 15px;
+    background-color: #1e1e1e;
+    color: #888;
+    font-size: 14px;
+    text-align: center;
+    border-radius: 8px;
+    width: 90%;
+}
+
+/* Footer */
+.footer {
+    background-color: #1e1e1e;
+    color: #888;
+    text-align: center;
+    padding: 10px;
+    font-size: 14px;
+    position: relative;
+    bottom: 0;
+    width: 100%;
+    margin-top: 30px;
+}
+.footer a {
+    color: #00ccff;
+    text-decoration: none;
+}
+.footer a:hover {
+    text-decoration: underline;
+}
+/* Highlighted Filter Button */
+.filter-btn {
+    background-color: #00ccff; /* Bright blue color */
+    color: black;
+    font-weight: bold;
+    border: 2px solid #00ccff;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+    background-color: #0099cc; /* Darker blue on hover */
+    border-color: #0099cc;
 }
