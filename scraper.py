@@ -4,6 +4,7 @@ import socket
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 # Set a default timeout for API requests
 socket.setdefaulttimeout(10)
@@ -11,19 +12,20 @@ socket.setdefaulttimeout(10)
 # Function to fetch NAV from the API with retries
 def get_nav(scheme_code, date):
     """Fetch NAV for a specific scheme code and date, checking up to 10 previous days if unavailable."""
-    for i in range(10):  # Try fetching NAV up to 10 previous days
-        check_date = (date - timedelta(days=i)).strftime("%d-%m-%Y")
-        url = f"https://api.mfapi.in/mf/{scheme_code}"
-        try:
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                nav_data = data.get("data", [])
+    url = f"https://api.mfapi.in/mf/{scheme_code}"
+    try:
+        response = requests.get(url, timeout=5)  # Reduced timeout to 5 sec
+        if response.status_code == 200:
+            data = response.json()
+            nav_data = data.get("data", [])
+
+            for i in range(10):  # Try fetching NAV up to 10 previous days
+                check_date = (date - timedelta(days=i)).strftime("%d-%m-%Y")
                 for entry in nav_data:
                     if entry["date"] == check_date:
-                        return float(entry["nav"])
-        except Exception as e:
-            print(f"⚠ API error: {e} for scheme code {scheme_code}")
+                        return float(entry["nav"])  # Stop retrying once valid NAV is found
+    except Exception as e:
+        print(f"⚠ API error: {e} for scheme code {scheme_code}")
     return None  # Return None if no NAV found
 
 # Load the filtered funds Excel file
@@ -70,25 +72,34 @@ nav_periods = {
     "10Y": most_common_nav_date - relativedelta(years=10),
 }
 
-# --- Fetch NAVs concurrently ---
+# --- Fetch NAVs in Batches ---
+BATCH_SIZE = 100  # Process 100 funds at a time
+
 def fetch_navs_for_period(df, period, date, max_workers=20):
     print(f"\nFetching NAVs for {period} as of {date.strftime('%d-%b-%Y')}...")
+    start_time = time.time()
+    
     results = {}
     codes = df["Scheme Code"].tolist()
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_code = {executor.submit(get_nav, code, date): code for code in codes}
-        for future in as_completed(future_to_code):
-            code = future_to_code[future]
-            try:
-                nav_value = future.result()
-                results[code] = nav_value
-            except Exception as exc:
-                print(f"⚠ Code {code} generated an exception: {exc}")
-                results[code] = None
+    # Process funds in smaller batches
+    for i in range(0, len(codes), BATCH_SIZE):
+        batch = codes[i:i + BATCH_SIZE]
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_code = {executor.submit(get_nav, code, date): code for code in batch}
+            for future in as_completed(future_to_code):
+                code = future_to_code[future]
+                try:
+                    nav_value = future.result()
+                    results[code] = nav_value
+                except Exception as exc:
+                    print(f"⚠ Code {code} generated an exception: {exc}")
+                    results[code] = None
     
     df[period] = df["Scheme Code"].map(results)
-    print(f"✅ Finished fetching NAVs for {period}.")
+    duration = time.time() - start_time
+    print(f"✅ Finished fetching NAVs for {period}. Took {duration:.2f} seconds.")
 
 # Process all funds
 df_all_funds = df_funds.copy()
@@ -97,13 +108,12 @@ df_all_funds = df_funds.copy()
 for period, date in nav_periods.items():
     fetch_navs_for_period(df_all_funds, period, date)
 
-# --- Fetch NAV for Most Common NAV Date ---
-print(f"\nFetching NAVs as of the most common NAV date: {most_common_nav_date.strftime('%d-%b-%Y')}")
-df_all_funds["Common NAV"] = df_all_funds["Scheme Code"].apply(lambda code: get_nav(code, most_common_nav_date))
+# Fetch NAVs for Most Common NAV Date
+fetch_navs_for_period(df_all_funds, "Most Common NAV", most_common_nav_date)
 
-# --- Calculate Returns Using Common NAV Instead of Latest NAV ---
+# Calculate returns in percentage
 for period in nav_periods.keys():
-    df_all_funds[f"{period} Return (%)"] = ((df_all_funds["Common NAV"] / df_all_funds[period] - 1) * 100).round(2)
+    df_all_funds[f"{period} Return (%)"] = ((df_all_funds["NAV"] / df_all_funds[period] - 1) * 100).round(2)
 
 # Save the final data to an Excel file
 output_file = "all_funds_with_returns.xlsx"
